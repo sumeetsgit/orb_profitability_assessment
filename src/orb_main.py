@@ -6,6 +6,7 @@ import glob
 from pathlib import Path
 import os
 import logging
+from tqdm import tqdm
 from datetime import datetime
 
 # --- --------- Configuration Parameters --------- ---
@@ -15,11 +16,17 @@ PROFIT_TARGET_MULTIPLIER = 2  # Multiplier for setting profit targets
 STOP_LOSS_MULTIPLIER = 1  # Multiplier for setting stop-loss levels
 
 # Paths
-DATA_DIR = Path('data')  # Directory containing CSV files
-OUTPUT_DIR = DATA_DIR / 'output'  # Directory to save outputs
+BASE_DIR = Path('data')
+AVAILABLE_NSE_TICKERS_CSV_PATH = 'C:/SUMEET/PERSONAL/WQU/WQU - Capstone Project/CODE/orb_profitability_assessment/data/NSE-Equity-List(Available).csv'
+DATA_DIR = "C:/SUMEET/PERSONAL/WQU/WQU - Capstone Project/CODE/orb_profitability_assessment/data/raw-data-1minute/nse/equity"
+# DATA_DIR = Path('data/raw-data-1minute/nse/equity/')  # Directory containing CSV files
+OUTPUT_DIR = BASE_DIR / 'output'  # Directory to save outputs
 
 # Strategy Parameters
 MARKET_OPEN_TIME = '09:30:00'  # Market opening time
+
+years = ["2021", "2022"]
+months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
 
 # --- --------- Create Output Directory --------- ---
@@ -54,6 +61,12 @@ def setup_logging(output_dir):
         level=logging.INFO
     )
     logging.info("Logging has been configured.")
+
+
+def check_available_tickers(AVAILABLE_NSE_TICKERS_CSV_PATH):
+    available_nse_tickers_df = pd.read_csv(AVAILABLE_NSE_TICKERS_CSV_PATH)
+    available_nse_tickers = list(available_nse_tickers_df["tickers"])
+    return available_nse_tickers
 
 
 # --- --------- Load and Concatenate CSV Files --------- ---
@@ -119,6 +132,31 @@ def prepare_data(data):
     return data
 
 
+def preprocess_data(ticker, data_dir, years, months):    
+    ticker_dfs = []
+    for year in years:
+        for month in months:
+            absolute_ticker_data_path = str(data_dir) + "/" + year + "/" + month + "_" + year + "/" + ticker
+            df = pd.read_csv(absolute_ticker_data_path)
+            ticker_dfs.append(df)
+
+    data = pd.concat(ticker_dfs)
+
+    data["<datetime>"] = data["<date>"].astype(str) + " " + data["<time>"].astype(str)
+    data['<datetime>'] = pd.to_datetime(data['<datetime>'])
+    data = data[["<ticker>", "<date>", "<time>", "<datetime>", "<open>", "<high>", "<low>", "<close>", "<volume>"]]
+    data.set_index('<datetime>', inplace=True)
+    data['<date>'] = data.index.date
+    data.sort_index(inplace=True)
+    print(data.shape)
+    # data.to_csv("temp.csv")
+    logging.info(f"Total records after concatenation for {ticker}: {len(data)}")
+
+    return data
+
+    
+
+
 # --- --------- Calculate Opening Range --------- ---
 def calculate_opening_range(data, opening_range_minutes, market_open_time):
     """
@@ -140,28 +178,28 @@ def calculate_opening_range(data, opening_range_minutes, market_open_time):
 
     # Filter data within the opening range using groupby and apply
     try:
-        opening_range = data.groupby('date').apply(
+        opening_range = data.groupby('<date>').apply(
             lambda x: x[x.index.time <= threshold_time]
         ).reset_index(level=0, drop=True)
         logging.info(f"Total records within the opening range: {len(opening_range)}")
     except FutureWarning as fw:
         logging.warning(f"FutureWarning encountered: {fw}")
         # Handle the warning by modifying the groupby apply as needed
-        opening_range = data.groupby('date').filter(
+        opening_range = data.groupby('<date>').filter(
             lambda x: (x.index.time <= threshold_time).any()
         ).copy()
-        opening_range = opening_range.groupby('date').apply(
+        opening_range = opening_range.groupby('<date>').apply(
             lambda x: x[x.index.time <= threshold_time]
         ).reset_index(drop=True)
         logging.info(f"Total records within the opening range after handling warning: {len(opening_range)}")
 
     # Calculate opening range high and low
-    opening_range_high = opening_range.groupby('date')['high'].max()
-    opening_range_low = opening_range.groupby('date')['low'].min()
+    opening_range_high = opening_range.groupby('<date>')['<high>'].max()
+    opening_range_low = opening_range.groupby('<date>')['<low>'].min()
 
     # Merge back into main data
-    data['opening_range_high'] = data['date'].map(opening_range_high)
-    data['opening_range_low'] = data['date'].map(opening_range_low)
+    data['opening_range_high'] = data['<date>'].map(opening_range_high)
+    data['opening_range_low'] = data['<date>'].map(opening_range_low)
     logging.info("Merged opening range high and low back into the main DataFrame.")
 
     return data
@@ -181,8 +219,8 @@ def apply_orb_strategy(df, profit_target_multiplier=2, stop_loss_multiplier=1):
     - pd.DataFrame: DataFrame with strategy signals and levels.
     """
     # Generate entry signals
-    df['long_entry'] = df['close'] > df['opening_range_high']
-    df['short_entry'] = df['close'] < df['opening_range_low']
+    df['long_entry'] = df['<close>'] > df['opening_range_high']
+    df['short_entry'] = df['<close>'] < df['opening_range_low']
     logging.info("Generated long and short entry signals.")
 
     # Calculate the range size
@@ -227,7 +265,7 @@ def backtest_strategies(df):
     logging.info("Shifted ORB signals to represent next time step positions.")
 
     # Calculate daily returns based on closing prices
-    df['daily_returns'] = df['close'].pct_change()
+    df['daily_returns'] = df['<close>'].pct_change()
 
     # Strategy returns: position * daily returns
     df['strategy_returns_orb'] = df['position_orb'] * df['daily_returns']
@@ -438,49 +476,58 @@ def main():
         setup_logging(OUTPUT_DIR)
         logging.info("ORB Strategy Backtest Script Started.")
 
-        # Step 3: Load and Prepare Data
-        data = load_and_concatenate_csv(DATA_DIR)
-        data = prepare_data(data)
+        # Step 3: Check available valid data
+        available_nse_tickers = check_available_tickers(AVAILABLE_NSE_TICKERS_CSV_PATH)
+        print("Data is available for {} tickers.".format(len(available_nse_tickers)))
 
-        # Step 4: Calculate Opening Range
-        data = calculate_opening_range(data, OPENING_RANGE_MINUTES, MARKET_OPEN_TIME)
+        # Step 4: Load and Prepare Data
+        for ticker in tqdm(available_nse_tickers[:1]):
+            # data = load_and_concatenate_csv(DATA_DIR)
+            # data = prepare_data(data)
 
-        # Step 5: Apply ORB Strategy
-        data = apply_orb_strategy(data, PROFIT_TARGET_MULTIPLIER, STOP_LOSS_MULTIPLIER)
+            print("TICKER --> ", ticker)
 
-        # Step 6: Backtest Strategies
-        cumulative_returns_orb, cumulative_returns_bh = backtest_strategies(data)
-        logging.info("Completed backtesting of both ORB and Buy and Hold strategies.")
+            data = preprocess_data(ticker, DATA_DIR, years, months)
 
-        # Step 7: Calculate Performance Metrics
-        daily_returns_orb = data['strategy_returns_orb'].dropna()
-        daily_returns_bh = data['strategy_returns_bh'].dropna()
+            # Step 5: Calculate Opening Range
+            data = calculate_opening_range(data, OPENING_RANGE_MINUTES, MARKET_OPEN_TIME)
 
-        metrics_orb = calculate_performance_metrics(cumulative_returns_orb.dropna(), daily_returns_orb)
-        metrics_bh = calculate_performance_metrics(cumulative_returns_bh.dropna(), daily_returns_bh)
+            # Step 6: Apply ORB Strategy
+            data = apply_orb_strategy(data, PROFIT_TARGET_MULTIPLIER, STOP_LOSS_MULTIPLIER)
 
-        # Compile performance metrics into DataFrame
-        performance_df = pd.DataFrame({
-            'ORB Strategy': metrics_orb,
-            'Buy and Hold': metrics_bh
-        })
+            # Step 7: Backtest Strategies
+            cumulative_returns_orb, cumulative_returns_bh = backtest_strategies(data)
+            logging.info("Completed backtesting of both ORB and Buy and Hold strategies.")
 
-        logging.info("Calculated performance metrics for both strategies.")
-        print("\nPerformance Metrics Comparison:")
-        print(performance_df)
+            # Step 8: Calculate Performance Metrics
+            daily_returns_orb = data['strategy_returns_orb'].dropna()
+            daily_returns_bh = data['strategy_returns_bh'].dropna()
 
-        # Step 8: Plotting
-        plot_cumulative_returns(cumulative_returns_orb, cumulative_returns_bh, OUTPUT_DIR)
-        plot_drawdowns(cumulative_returns_orb, cumulative_returns_bh, OUTPUT_DIR)
-        plot_performance_metrics(performance_df, OUTPUT_DIR)
+            metrics_orb = calculate_performance_metrics(cumulative_returns_orb.dropna(), daily_returns_orb)
+            metrics_bh = calculate_performance_metrics(cumulative_returns_bh.dropna(), daily_returns_bh)
 
-        # Step 9: Save Performance Metrics to CSV
-        save_performance_metrics(performance_df, OUTPUT_DIR)
+            # Compile performance metrics into DataFrame
+            performance_df = pd.DataFrame({
+                'ORB Strategy': metrics_orb,
+                'Buy and Hold': metrics_bh
+            })
 
-        # Step 10: Save the Enhanced Dataset
-        save_enhanced_dataset(data, OUTPUT_DIR)
+            logging.info("Calculated performance metrics for both strategies.")
+            print("\nPerformance Metrics Comparison:")
+            print(performance_df)
 
-        logging.info("ORB Strategy Backtest Script completed successfully.")
+            # Step 8: Plotting
+            plot_cumulative_returns(cumulative_returns_orb, cumulative_returns_bh, OUTPUT_DIR)
+            plot_drawdowns(cumulative_returns_orb, cumulative_returns_bh, OUTPUT_DIR)
+            plot_performance_metrics(performance_df, OUTPUT_DIR)
+
+            # Step 9: Save Performance Metrics to CSV
+            save_performance_metrics(performance_df, OUTPUT_DIR)
+
+            # Step 10: Save the Enhanced Dataset
+            save_enhanced_dataset(data, OUTPUT_DIR)
+
+            logging.info("ORB Strategy Backtest Script completed successfully.")
 
     except Exception as e:
         logging.error(f"An error occurred during execution: {e}")
