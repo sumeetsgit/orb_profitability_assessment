@@ -16,7 +16,7 @@ PROFIT_TARGET_MULTIPLIER = 2  # Multiplier for setting profit targets
 STOP_LOSS_MULTIPLIER = 1  # Multiplier for setting stop-loss levels
 
 # Paths
-BASE_DIR = Path('data')
+BASE_DIR = Path('app-data')
 AVAILABLE_NSE_TICKERS_CSV_PATH = 'C:/SUMEET/PERSONAL/WQU/WQU - Capstone Project/CODE/orb_profitability_assessment/data/NSE-Equity-List(Available).csv'
 DATA_DIR = "C:/SUMEET/PERSONAL/WQU/WQU - Capstone Project/CODE/orb_profitability_assessment/data/raw-data-1minute/nse/equity"
 # DATA_DIR = Path('data/raw-data-1minute/nse/equity/')  # Directory containing CSV files
@@ -136,7 +136,7 @@ def preprocess_data(ticker, data_dir, years, months):
     ticker_dfs = []
     for year in years:
         for month in months:
-            absolute_ticker_data_path = str(data_dir) + "/" + year + "/" + month + "_" + year + "/" + ticker
+            absolute_ticker_data_path = str(data_dir) + "/" + year + "/" + month + "_" + year + "/" + ticker + ".csv"
             df = pd.read_csv(absolute_ticker_data_path)
             ticker_dfs.append(df)
 
@@ -330,7 +330,7 @@ def calculate_performance_metrics(cumulative_returns, daily_returns):
 
 
 # --- --------- Plotting Functions --------- ---
-def plot_cumulative_returns(cumulative_returns_orb, cumulative_returns_bh, output_dir):
+def plot_cumulative_returns(cumulative_returns_orb, cumulative_returns_bh, output_dir, ticker):
     """
     Plot and save cumulative returns for ORB and Buy and Hold strategies.
 
@@ -351,17 +351,26 @@ def plot_cumulative_returns(cumulative_returns_orb, cumulative_returns_bh, outpu
 
     # Define the path to save the cumulative returns plot
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    cumulative_returns_plot_path = output_dir / f'cumulative_returns_orb_vs_bh_{timestamp}.png'
-
+    cumulative_returns_plot_dir = output_dir / ticker
+    cumulative_returns_plot_path = cumulative_returns_plot_dir / f'cumulative_returns_orb_vs_bh_{timestamp}.png'
+    try:
+        cumulative_returns_plot_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Output directory created at: {cumulative_returns_plot_dir.resolve()}")
+    except Exception as e:
+        print(f"Failed to create output directory at {cumulative_returns_plot_dir}: {e}")
+        raise e
+    
     # Save the plot
     plt.savefig(cumulative_returns_plot_path)
     logging.info(f"Cumulative Returns plot saved to {cumulative_returns_plot_path}")
 
     # Display the plot
-    plt.show()
+    # plt.show()
+
+    plt.close()
 
 
-def plot_drawdowns(cumulative_returns_orb, cumulative_returns_bh, output_dir):
+def plot_drawdowns(cumulative_returns_orb, cumulative_returns_bh, output_dir, ticker):
     """
     Plot and save drawdowns for ORB and Buy and Hold strategies.
 
@@ -391,17 +400,27 @@ def plot_drawdowns(cumulative_returns_orb, cumulative_returns_bh, output_dir):
 
     # Define the path to save the drawdowns plot
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    drawdowns_plot_path = output_dir / f'drawdowns_orb_vs_bh_{timestamp}.png'
+    drawdowns_plot_dir = output_dir / ticker
+    drawdowns_plot_path = drawdowns_plot_dir / f'drawdowns_orb_vs_bh_{timestamp}.png'
+
+    try:
+        drawdowns_plot_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Output directory created at: {drawdowns_plot_dir.resolve()}")
+    except Exception as e:
+        print(f"Failed to create output directory at {drawdowns_plot_dir}: {e}")
+        raise e
 
     # Save the plot
     plt.savefig(drawdowns_plot_path)
     logging.info(f"Drawdowns plot saved to {drawdowns_plot_path}")
 
     # Display the plot
-    plt.show()
+    # plt.show()
+
+    plt.close()
 
 
-def plot_performance_metrics(performance_df, output_dir):
+def plot_performance_metrics(performance_df, output_dir, ticker):
     """
     Plot and save performance metrics comparison as a bar chart.
 
@@ -426,18 +445,28 @@ def plot_performance_metrics(performance_df, output_dir):
 
     # Define the path to save the performance metrics plot
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    performance_metrics_plot_path = output_dir / f'performance_metrics_comparison_{timestamp}.png'
+    performance_metrics_plot_dir = output_dir / ticker
+    performance_metrics_plot_path = performance_metrics_plot_dir / f'performance_metrics_comparison_{timestamp}.png'
+
+    try:
+        performance_metrics_plot_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Output directory created at: {performance_metrics_plot_dir.resolve()}")
+    except Exception as e:
+        print(f"Failed to create output directory at {performance_metrics_plot_dir}: {e}")
+        raise e
 
     # Save the plot
     plt.savefig(performance_metrics_plot_path)
     logging.info(f"Performance metrics plot saved to {performance_metrics_plot_path}")
 
     # Display the plot
-    plt.show()
+    # plt.show()
+
+    plt.close()
 
 
 # --- --------- Save Performance Metrics --------- ---
-def save_performance_metrics(performance_df, output_dir):
+def save_performance_metrics(performance_df, output_dir, ticker):
     """
     Save the performance metrics DataFrame to a CSV file.
 
@@ -446,13 +475,22 @@ def save_performance_metrics(performance_df, output_dir):
     - output_dir (Path): Directory to save the CSV file.
     """
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    performance_metrics_path = output_dir / f'performance_metrics_comparison_{timestamp}.csv'
+    performance_metrics_dir = output_dir / ticker
+    performance_metrics_path = performance_metrics_dir / f'performance_metrics_comparison_{timestamp}.csv'
+
+    try:
+        performance_metrics_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Output directory created at: {performance_metrics_dir.resolve()}")
+    except Exception as e:
+        print(f"Failed to create output directory at {performance_metrics_dir}: {e}")
+        raise e
+
     performance_df.to_csv(performance_metrics_path)
     logging.info(f"Performance metrics saved to {performance_metrics_path}")
 
 
 # --- --------- Save Enhanced Dataset --------- ---
-def save_enhanced_dataset(df, output_dir):
+def save_enhanced_dataset(df, output_dir, ticker):
     """
     Save the enhanced DataFrame with strategy metrics to a CSV file.
 
@@ -461,7 +499,16 @@ def save_enhanced_dataset(df, output_dir):
     - output_dir (Path): Directory to save the CSV file.
     """
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output_file = output_dir / f'enhanced_orb_strategy_{timestamp}.csv'
+    enhanced_dataset_dir = output_dir / ticker
+    output_file = enhanced_dataset_dir / f'enhanced_orb_strategy_{timestamp}.csv'
+
+    try:
+        enhanced_dataset_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Output directory created at: {enhanced_dataset_dir.resolve()}")
+    except Exception as e:
+        print(f"Failed to create output directory at {enhanced_dataset_dir}: {e}")
+        raise e
+
     df.to_csv(output_file, index=True)
     logging.info(f"Enhanced dataset with ORB and B&H strategy metrics saved to {output_file}")
 
@@ -480,11 +527,15 @@ def main():
         available_nse_tickers = check_available_tickers(AVAILABLE_NSE_TICKERS_CSV_PATH)
         print("Data is available for {} tickers.".format(len(available_nse_tickers)))
 
+        complete_tickers = []
+        incomplete_tickers = []
+
         # Step 4: Load and Prepare Data
-        for ticker in tqdm(available_nse_tickers[:1]):
+        for ticker in tqdm(available_nse_tickers):
             # data = load_and_concatenate_csv(DATA_DIR)
             # data = prepare_data(data)
 
+            ticker = ticker.split(".")[0]
             print("TICKER --> ", ticker)
 
             data = preprocess_data(ticker, DATA_DIR, years, months)
@@ -517,21 +568,25 @@ def main():
             print(performance_df)
 
             # Step 8: Plotting
-            plot_cumulative_returns(cumulative_returns_orb, cumulative_returns_bh, OUTPUT_DIR)
-            plot_drawdowns(cumulative_returns_orb, cumulative_returns_bh, OUTPUT_DIR)
-            plot_performance_metrics(performance_df, OUTPUT_DIR)
+            plot_cumulative_returns(cumulative_returns_orb, cumulative_returns_bh, OUTPUT_DIR, ticker)
+            plot_drawdowns(cumulative_returns_orb, cumulative_returns_bh, OUTPUT_DIR, ticker)
+            plot_performance_metrics(performance_df, OUTPUT_DIR, ticker)
 
             # Step 9: Save Performance Metrics to CSV
-            save_performance_metrics(performance_df, OUTPUT_DIR)
+            save_performance_metrics(performance_df, OUTPUT_DIR, ticker)
 
             # Step 10: Save the Enhanced Dataset
-            save_enhanced_dataset(data, OUTPUT_DIR)
+            save_enhanced_dataset(data, OUTPUT_DIR, ticker)
 
             logging.info("ORB Strategy Backtest Script completed successfully.")
+            complete_tickers.append(ticker)
 
     except Exception as e:
         logging.error(f"An error occurred during execution: {e}")
         print(f"An error occurred: {e}")
+        incomplete_tickers.append(ticker)
+        complete_tickers_df = pd.DataFrame(complete_tickers)
+        complete_tickers_df.to_csv("complete_tickers.csv")
 
 
 # Execute the main function
