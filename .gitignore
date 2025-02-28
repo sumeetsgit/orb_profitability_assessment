@@ -1,7 +1,11 @@
 # user directories
 
 data/
+data/output/
+data/raw-data-1minute/
 
+src/app-data/
+src/app-data.zip
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
