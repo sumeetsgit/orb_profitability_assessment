@@ -5,9 +5,11 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import random
+from tqdm import tqdm
 
 
 from settings import *
+from metrics import compute_performance_metrics
 
 
 
@@ -251,7 +253,7 @@ def apply_orb_strategy(df, profit_target_multiplier, stop_loss_multiplier):
     df.loc[short_win_condition, 'trade_outcome'] = 'win'
     df.loc[short_loss_condition, 'trade_outcome'] = 'loss'
 
-    print("ORB strategy applied with parameters - Profit Target Multiplier: {}, Stop Loss Multiplier: {}".format(profit_target_multiplier, stop_loss_multiplier))
+    # print("ORB strategy applied with parameters - Profit Target Multiplier: {}, Stop Loss Multiplier: {}".format(profit_target_multiplier, stop_loss_multiplier))
 
     return df
 
@@ -282,237 +284,153 @@ def apply_orb_strategy_with_param_range(data, profit_target_multipliers, stop_lo
       - dict: Keys are parameter combination strings, values are DataFrames with ORB strategy results.
     """
     data_dict = {}
-    for market_open_time in market_open_times:
+    for market_open_time in tqdm(market_open_times):
         for opening_range in opening_range_minutes_list:
             # Compute the opening range for this configuration
             data_or = calculate_opening_range(data.copy(), opening_range, market_open_time)
             for pt_mult in profit_target_multipliers:
                 for sl_mult in stop_loss_multipliers:
                     df_orb = apply_orb_strategy(data_or.copy(), profit_target_multiplier=pt_mult, stop_loss_multiplier=sl_mult)
-                    key = f"mo:{market_open_time}_or:{opening_range}_pt:{pt_mult}_sl:{sl_mult}"
+                    key = f"MOT_{market_open_time}__OR_{opening_range}__PTM_{pt_mult}__SLM_{sl_mult}"
                     data_dict[key] = df_orb
                     logging.info(f"Processed {key}")
 
     return data_dict
 
 
-# # --- --------- Backtest Strategies --------- ---
-# def backtest_strategies(df):
-#     """
-#     Backtest ORB and Buy and Hold strategies.
-
-#     Parameters:
-#     - df (pd.DataFrame): DataFrame with strategy signals.
-
-#     Returns:
-#     - pd.Series, pd.Series: Cumulative returns for ORB and Buy and Hold strategies.
-#     """
-#     # --- Opening Range Breakout Strategy ---
-
-#     # Shift signals to represent positions taken at the next time step
-#     df['position_orb'] = df['signal'].shift()
-#     logging.info("Shifted ORB signals to represent next time step positions.")
-
-#     # Calculate daily returns based on closing prices
-#     df['daily_returns'] = df['<close>'].pct_change()
-
-#     # Strategy returns: position * daily returns
-#     df['strategy_returns_orb'] = df['position_orb'] * df['daily_returns']
-#     logging.info("Calculated strategy returns for ORB.")
-
-#     # Calculate cumulative returns for ORB
-#     cumulative_returns_orb = (1 + df['strategy_returns_orb']).cumprod() - 1
-#     logging.info("Calculated cumulative returns for ORB.")
-
-#     # --- Buy and Hold Strategy ---
-
-#     # Define Buy and Hold position (always 1)
-#     df['position_bh'] = 1
-#     logging.info("Defined Buy and Hold position.")
-
-#     # Strategy returns for Buy and Hold
-#     df['strategy_returns_bh'] = df['position_bh'] * df['daily_returns']
-#     logging.info("Calculated strategy returns for Buy and Hold.")
-
-#     # Calculate cumulative returns for Buy and Hold
-#     cumulative_returns_bh = (1 + df['strategy_returns_bh']).cumprod() - 1
-#     logging.info("Calculated cumulative returns for Buy and Hold.")
-
-#     return cumulative_returns_orb, cumulative_returns_bh
-
-
-def backtest_strategies(df):
+def backtest_strategies(rangewise_data):
     """
-    Backtest multiple strategies:
-      - ORB (Opening Range Breakout)
+    Backtest multiple strategies and add columns for daily returns and cumulative portfolio values.
+    
+    Strategies:
+      - ORB (using pre-computed "signal")
       - Buy and Hold
       - Moving Average Crossover
       - Mean Reversion
       - Volatility Breakout
       - Intraday Momentum
-      - Golden Ratio Breakouts
-
-    Assumes the DataFrame 'df' contains required columns:
-      - "<close>", "<open>", "<high>", "<low>"
-      - For ORB, the ORB strategy signals should be in "signal" and 
-        opening range info in "opening_range_high", "opening_range_low", and "range_size".
+      - Golden Ratio Breakout
+      
+    Assumes df contains the required columns (e.g. "<close>", "<open>", "<high>", "<low>").
     
     Returns:
-      - dict: Keys are strategy names, values are cumulative return pd.Series.
+      - pd.DataFrame: The original dataframe with added columns:
+            "daily_returns" and for each strategy:
+              - Strategy daily returns (e.g. "ORB_returns")
+              - Cumulative portfolio value (e.g. "ORB_cum") starting at 1.
     """
-    df = df.copy()
+    data_dict = {}
+    for key, df in rangewise_data.items():
+        df = df.copy()
+        df["daily_returns"] = df["<close>"].pct_change().fillna(0)
+        
+        # ORB Strategy
+        df["ORB_position"] = df["signal"].shift().fillna(0)
+        df["ORB_returns"] = df["ORB_position"] * df["daily_returns"]
+        df["ORB_cum"] = (1 + df["ORB_returns"]).cumprod()
+        
+        # Buy and Hold Strategy
+        df["BH_position"] = 1
+        df["BH_returns"] = df["BH_position"] * df["daily_returns"]
+        df["BH_cum"] = (1 + df["BH_returns"]).cumprod()
+        
+        # Moving Average Crossover Strategy
+        df["short_MA"] = df["<close>"].rolling(window=20, min_periods=1).mean()
+        df["long_MA"] = df["<close>"].rolling(window=50, min_periods=1).mean()
+        df["MA_signal"] = np.where(df["short_MA"] > df["long_MA"], 1, -1)
+        df["MA_position"] = df["MA_signal"].shift().fillna(0)
+        df["MA_returns"] = df["MA_position"] * df["daily_returns"]
+        df["MA_cum"] = (1 + df["MA_returns"]).cumprod()
+        
+        # Mean Reversion Strategy
+        window = 20
+        df["rolling_mean"] = df["<close>"].rolling(window=window, min_periods=1).mean()
+        df["rolling_std"] = df["<close>"].rolling(window=window, min_periods=1).std()
+        df["z_score"] = (df["<close>"] - df["rolling_mean"]) / df["rolling_std"]
+        threshold = 1.0
+        df["MR_signal"] = 0
+        df.loc[df["z_score"] > threshold, "MR_signal"] = -1
+        df.loc[df["z_score"] < -threshold, "MR_signal"] = 1
+        df["MR_position"] = df["MR_signal"].shift().fillna(0)
+        df["MR_returns"] = df["MR_position"] * df["daily_returns"]
+        df["MR_cum"] = (1 + df["MR_returns"]).cumprod()
+        
+        # Volatility Breakout Strategy
+        vol_breakout_threshold = 0.5
+        df["VB_signal"] = 0
+        df.loc[df["<close>"] > df["<open>"] + vol_breakout_threshold*(df["<high>"] - df["<low>"]), "VB_signal"] = 1
+        df.loc[df["<close>"] < df["<open>"] - vol_breakout_threshold*(df["<high>"] - df["<low>"]), "VB_signal"] = -1
+        df["VB_position"] = df["VB_signal"].shift().fillna(0)
+        df["VB_returns"] = df["VB_position"] * df["daily_returns"]
+        df["VB_cum"] = (1 + df["VB_returns"]).cumprod()
+        
+        # Intraday Momentum Strategy
+        df["momentum"] = df["<close>"] - df["<open>"]
+        df["MOM_signal"] = np.where(df["momentum"] > 0, 1, -1)
+        df["MOM_position"] = df["MOM_signal"].shift().fillna(0)
+        df["MOM_returns"] = df["MOM_position"] * df["daily_returns"]
+        df["MOM_cum"] = (1 + df["MOM_returns"]).cumprod()
+        
+        # Golden Ratio Breakout Strategy
+        if "range_size" not in df.columns:
+            df["range_size"] = df["opening_range_high"] - df["opening_range_low"]
+        golden_ratio = 0.618
+        df["GR_fibo_long"] = df["opening_range_low"] + golden_ratio * df["range_size"]
+        df["GR_fibo_short"] = df["opening_range_low"] + (1 - golden_ratio) * df["range_size"]
+        df["GR_signal"] = 0
+        df.loc[df["<close>"] > df["GR_fibo_long"], "GR_signal"] = 1
+        df.loc[df["<close>"] < df["GR_fibo_short"], "GR_signal"] = -1
+        df["GR_position"] = df["GR_signal"].shift().fillna(0)
+        df["GR_returns"] = df["GR_position"] * df["daily_returns"]
+        df["GR_cum"] = (1 + df["GR_returns"]).cumprod()
+
+        data_dict[key] = df
     
-    # Calculate daily returns (or intraday returns for high frequency data)
-    df['daily_returns'] = df['<close>'].pct_change()
-    
-    results = {}
-
-    # --- ORB Strategy ---
-    # Shift the ORB signal (assumed to be in 'signal') to simulate taking the next bar's position
-    df['position_orb'] = df['signal'].shift()
-    df['strategy_returns_orb'] = df['position_orb'] * df['daily_returns']
-    cumulative_returns_orb = (1 + df['strategy_returns_orb']).cumprod() - 1
-    results['ORB'] = cumulative_returns_orb
-    logging.info("Backtested ORB strategy.")
-
-    # --- Buy and Hold Strategy ---
-    df['position_bh'] = 1
-    df['strategy_returns_bh'] = df['position_bh'] * df['daily_returns']
-    cumulative_returns_bh = (1 + df['strategy_returns_bh']).cumprod() - 1
-    results['Buy and Hold'] = cumulative_returns_bh
-    logging.info("Backtested Buy and Hold strategy.")
-
-    # --- Moving Average Crossover Strategy ---
-    df['short_MA'] = df['<close>'].rolling(window=20, min_periods=1).mean()
-    df['long_MA'] = df['<close>'].rolling(window=50, min_periods=1).mean()
-    df['signal_ma'] = np.where(df['short_MA'] > df['long_MA'], 1, -1)
-    df['position_ma'] = df['signal_ma'].shift()
-    df['strategy_returns_ma'] = df['position_ma'] * df['daily_returns']
-    cumulative_returns_ma = (1 + df['strategy_returns_ma']).cumprod() - 1
-    results['MA Crossover'] = cumulative_returns_ma
-    logging.info("Backtested Moving Average Crossover strategy.")
-
-    # --- Mean Reversion Strategy ---
-    window = 20
-    df['rolling_mean'] = df['<close>'].rolling(window=window, min_periods=1).mean()
-    df['rolling_std'] = df['<close>'].rolling(window=window, min_periods=1).std()
-    df['z_score'] = (df['<close>'] - df['rolling_mean']) / df['rolling_std']
-    threshold = 1.0  # can be adjusted
-    df['signal_mr'] = 0
-    df.loc[df['z_score'] > threshold, 'signal_mr'] = -1  # Overbought: signal short
-    df.loc[df['z_score'] < -threshold, 'signal_mr'] = 1  # Oversold: signal long
-    df['position_mr'] = df['signal_mr'].shift()
-    df['strategy_returns_mr'] = df['position_mr'] * df['daily_returns']
-    cumulative_returns_mr = (1 + df['strategy_returns_mr']).cumprod() - 1
-    results['Mean Reversion'] = cumulative_returns_mr
-    logging.info("Backtested Mean Reversion strategy.")
-
-    # --- Volatility Breakout Strategy ---
-    # Simple rule: if close > open + threshold*(high-low), then long; if close < open - threshold*(high-low), then short.
-    vol_breakout_threshold = 0.5  # parameter can be adjusted
-    df['signal_vb'] = 0
-    df.loc[df['<close>'] > df['<open>'] + vol_breakout_threshold * (df['<high>'] - df['<low>']), 'signal_vb'] = 1
-    df.loc[df['<close>'] < df['<open>'] - vol_breakout_threshold * (df['<high>'] - df['<low>']), 'signal_vb'] = -1
-    df['position_vb'] = df['signal_vb'].shift()
-    df['strategy_returns_vb'] = df['position_vb'] * df['daily_returns']
-    cumulative_returns_vb = (1 + df['strategy_returns_vb']).cumprod() - 1
-    results['Volatility Breakout'] = cumulative_returns_vb
-    logging.info("Backtested Volatility Breakout strategy.")
-
-    # --- Intraday Momentum Strategy ---
-    # Signal based on the intraday price change from open.
-    df['momentum'] = df['<close>'] - df['<open>']
-    df['signal_mom'] = np.where(df['momentum'] > 0, 1, -1)
-    df['position_mom'] = df['signal_mom'].shift()
-    df['strategy_returns_mom'] = df['position_mom'] * df['daily_returns']
-    cumulative_returns_mom = (1 + df['strategy_returns_mom']).cumprod() - 1
-    results['Intraday Momentum'] = cumulative_returns_mom
-    logging.info("Backtested Intraday Momentum strategy.")
-
-    # --- Golden Ratio Breakouts Strategy ---
-    # Assumes the ORB opening range has been computed.
-    # Ensure that "opening_range_low" and "opening_range_high" are available.
-    # Compute range_size if not already present.
-    if 'range_size' not in df.columns:
-        df['range_size'] = df['opening_range_high'] - df['opening_range_low']
-    golden_ratio = 0.618
-    df['fibo_level_long'] = df['opening_range_low'] + golden_ratio * df['range_size']
-    df['fibo_level_short'] = df['opening_range_low'] + (1 - golden_ratio) * df['range_size']  # approx. 0.382 level
-    df['signal_gr'] = 0
-    df.loc[df['<close>'] > df['fibo_level_long'], 'signal_gr'] = 1
-    df.loc[df['<close>'] < df['fibo_level_short'], 'signal_gr'] = -1
-    df['position_gr'] = df['signal_gr'].shift()
-    df['strategy_returns_gr'] = df['position_gr'] * df['daily_returns']
-    cumulative_returns_gr = (1 + df['strategy_returns_gr']).cumprod() - 1
-    results['Golden Ratio Breakout'] = cumulative_returns_gr
-    logging.info("Backtested Golden Ratio Breakout strategy.")
-
-    return results
+    return data_dict
 
 
-# --- Performance Metrics Calculation ---
-def compute_performance_metrics(returns_series):
-    """
-    Compute performance metrics:
-      - Net Return: Final cumulative return.
-      - Sharpe Ratio: (Mean return / Std return) annualized.
-      - Sortino Ratio: Mean return divided by the downside std, annualized.
-      - Maximum Drawdown.
-      - Win Rate: Fraction of non-zero return bars that are positive.
-      - Average Trade Return.
-      - Win/Loss Ratio.
-    """
-    net_return = returns_series.iloc[-1]
-    mean_return = returns_series.mean()
-    std_return = returns_series.std()
-    sharpe_ratio = (mean_return / std_return) * np.sqrt(252) if std_return != 0 else np.nan
-    negative_returns = returns_series[returns_series < 0]
-    std_downside = negative_returns.std()
-    sortino_ratio = (mean_return / std_downside) * np.sqrt(252) if std_downside != 0 else np.nan
-    cumulative = (1 + returns_series).cumprod()
-    running_max = cumulative.cummax()
-    drawdown = (cumulative - running_max) / running_max
-    max_drawdown = drawdown.min()
-    trades = returns_series[returns_series != 0]
-    win_rate = (trades > 0).mean() if len(trades) > 0 else np.nan
-    avg_trade_return = trades.mean() if len(trades) > 0 else np.nan
-    wins = trades[trades > 0]
-    losses = trades[trades < 0]
-    avg_win = wins.mean() if len(wins) > 0 else 0
-    avg_loss = losses.mean() if len(losses) > 0 else 0
-    win_loss_ratio = avg_win / abs(avg_loss) if avg_loss != 0 else np.nan
-    return {
-        'net_return': net_return,
-        'sharpe_ratio': sharpe_ratio,
-        'sortino_ratio': sortino_ratio,
-        'max_drawdown': max_drawdown,
-        'win_rate': win_rate,
-        'avg_trade_return': avg_trade_return,
-        'win_loss_ratio': win_loss_ratio
-    }
 
 
-# --- Performance Comparison Plotting ---
 def plot_performance_comparison(metrics_dict):
     """
-    Plot a grouped bar chart comparing key performance metrics across strategies.
+    Plot performance metrics across strategies in grouped subplots.
+    
+    The metrics are divided into four categories:
+      - Return Metrics: net_return, annualized_return
+      - Risk Metrics: annualized_volatility, max_drawdown, calmar_ratio
+      - Performance Ratios: sharpe_ratio, adjusted_sharpe_ratio, omega_ratio, kappa_ratio, sortino_ratio, treynor_ratio
+      - Trade-level Statistics: win_rate, avg_trade_return, win_loss_ratio
     
     Parameters:
-      - metrics_dict: dict with keys as strategy names and values as dictionaries of metrics.
+      - metrics_dict: dict with keys as strategy names and values as dicts of metrics.
     """
     metrics_df = pd.DataFrame(metrics_dict).T
-    # Select key metrics for plotting
-    metrics_df = metrics_df[['net_return', 'sharpe_ratio', 'sortino_ratio', 'max_drawdown']]
-    metrics_df.plot(kind='bar', figsize=(12, 6))
-    plt.title("Performance Comparison Across Strategies")
-    plt.ylabel("Metric Value")
-    plt.xticks(rotation=45)
-    plt.tight_layout()
+    
+    category1 = ["net_return", "annualized_return"]
+    category2 = ["annualized_volatility", "max_drawdown", "calmar_ratio"]
+    category3 = ["sharpe_ratio", "adjusted_sharpe_ratio", "omega_ratio", "kappa_ratio", "sortino_ratio", "treynor_ratio"]
+    category4 = ["win_rate", "avg_trade_return", "win_loss_ratio"]
+    
+    categories = [category1, category2, category3, category4]
+    titles = ["Return Metrics", "Risk Metrics", "Performance Ratios", "Trade-level Statistics"]
+    
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    axes = axes.flatten()
+    
+    for i, cat in enumerate(categories):
+        df_cat = metrics_df[cat]
+        df_cat.plot(kind="bar", ax=axes[i])
+        axes[i].set_title(titles[i])
+        axes[i].set_ylabel("Value")
+        axes[i].tick_params(axis="x", rotation=45)
+    
+    plt.suptitle("Performance Comparison Across Strategies", fontsize=18)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.show()
 
 
 # --- Parameter Optimization with Performance Evaluation ---
-def optimize_parameters_gs(rangewise_results, criteria_sharpe_threshold, criteria_max_drawdown):
+def get_optimized_parameters_gs(backtesting_results, criteria_sharpe_threshold, criteria_max_drawdown):
     """
     Run the backtesting engine over a grid of parameter combinations, compute performance
     metrics for the ORB strategy, and select the best parameter combination based on sample criteria.
@@ -527,10 +445,11 @@ def optimize_parameters_gs(rangewise_results, criteria_sharpe_threshold, criteri
       - best_parameters (str): Key string for the best parameter combination (or None if no combination qualifies).
     """
     performance_records = []
-    for key, df in rangewise_results.items():
-        strat_returns = backtest_strategies(df)
-        orb_returns = strat_returns.get('ORB')
-        metrics = compute_performance_metrics(orb_returns)
+    for key, bt_df in backtesting_results.items():
+        orb_cum = bt_df["ORB_cum"]
+        orb_daily = bt_df["ORB_returns"]
+        trading_days = bt_df.shape[0]
+        metrics = compute_performance_metrics(orb_cum, orb_daily, trading_days)
         record = {
             'parameters': key,
             'net_return': metrics['net_return'],
@@ -539,25 +458,31 @@ def optimize_parameters_gs(rangewise_results, criteria_sharpe_threshold, criteri
             'max_drawdown': metrics['max_drawdown'],
             'win_rate': metrics['win_rate'],
             'avg_trade_return': metrics['avg_trade_return'],
-            'win_loss_ratio': metrics['win_loss_ratio']
+            'win_loss_ratio': metrics['win_loss_ratio'],
+            "annualized_return": metrics["annualized_return"],
+            "annualized_volatility": metrics["annualized_volatility"],
+            "adjusted_sharpe_ratio": metrics["adjusted_sharpe_ratio"],
+            "omega_ratio": metrics["omega_ratio"],
+            "kappa_ratio": metrics["kappa_ratio"],
+            "calmar_ratio": metrics["calmar_ratio"],
+            "treynor_ratio": metrics["treynor_ratio"]
         }
         performance_records.append(record)
-    performance_df = pd.DataFrame(performance_records)
+    performance_metrics_df = pd.DataFrame(performance_records)
 
-    print(performance_df)
+    # print(performance_df)
     
-    valid_df = performance_df[(performance_df['sharpe_ratio'] >= criteria_sharpe_threshold) &
-                              (performance_df['max_drawdown'] >= criteria_max_drawdown)]
-    print(valid_df)
+    valid_df = performance_metrics_df[(performance_metrics_df['adjusted_sharpe_ratio'] >= criteria_sharpe_threshold)]# & (performance_df['max_drawdown'] >= criteria_max_drawdown)]
+    # print(valid_df)
     if not valid_df.empty:
-        best_row = valid_df.sort_values(by='sharpe_ratio', ascending=False).iloc[0]
+        best_row = valid_df.sort_values(by='adjusted_sharpe_ratio', ascending=False).iloc[0]
         best_parameters = best_row['parameters']
         logging.info(f"Best parameters: {best_parameters}")
     else:
         best_parameters = None
         logging.info("No parameter combination met the criteria.")
 
-    return performance_df, best_parameters
+    return performance_metrics_df, best_parameters
 
 
 
