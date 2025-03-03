@@ -2,6 +2,7 @@
 
 ## Create below directories strctures to store raw data.
 
+```
 |-data
     |-raw-data
         |-raw-data-1minute
@@ -16,6 +17,8 @@
                         |-January_2022
                         |-.....
                         |-December_2021
+
+```
 
 ## Install required libraries from "requirements.txt"
     pip install --upgrade pip
