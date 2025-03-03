@@ -27,7 +27,7 @@ RISK_FREE_RATE = 0.06 / 252
 YEARS = ["2021", "2022"]
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
-BASE_DIR = "C:/SUMEET/PERSONAL/WQU/WQU - Capstone Project/CODE/orb_profitability_assessment/"
+BASE_DIR = "/Users/zacharylau/PycharmProjects/orb_profitability_assessment/"
 DATA_DIR = BASE_DIR + "data/"
 
 OUTPUT_DIR = DATA_DIR + "output/"
