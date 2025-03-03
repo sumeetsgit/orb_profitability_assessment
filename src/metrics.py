@@ -114,16 +114,31 @@ def calculate_calmar_ratio(annualized_return, max_drawdown):
     return annualized_return / abs(max_drawdown) if max_drawdown != 0 else np.nan
 
 
-def calculate_treynor_ratio(daily_returns, market_returns, risk_free_rate=RISK_FREE_RATE):
+# def calculate_treynor_ratio(daily_returns, market_returns, risk_free_rate=RISK_FREE_RATE):
+#     """
+#     Calculate the Treynor Ratio.
+#     """
+#     beta = daily_returns.cov(market_returns) / market_returns.var() if market_returns.var() != 0 else np.nan
+#     return (daily_returns.mean() - risk_free_rate) / beta if beta not in [0, np.nan] else np.nan
+
+
+def calculate_treynor_ratio(daily_returns, market_returns, risk_free_rate=0.06/252):
     """
     Calculate the Treynor Ratio.
+    
+    Changes made:
+      - Replaced the 'if beta not in [0, np.nan]' condition with a robust check for beta.
     """
-    beta = daily_returns.cov(market_returns) / market_returns.var() if market_returns.var() != 0 else np.nan
-    return (daily_returns.mean() - risk_free_rate) / beta if beta not in [0, np.nan] else np.nan
+    mkt_var = market_returns.var()
+    if mkt_var == 0:
+        return np.nan
+    beta = daily_returns.cov(market_returns) / mkt_var
+    if beta == 0 or np.isnan(beta):
+        return np.nan
+    return (daily_returns.mean() - risk_free_rate) / beta
 
 
-
-def compute_performance_metrics(cum_series, daily_returns, trading_days, market_returns=None, risk_free_rate=0.06/252):
+def compute_performance_metrics(cum_series, daily_returns, trading_days, market_returns=None, risk_free_rate=0.06/252, ticker=None, best_parameters=None):
     """
     Compute a suite of performance metrics:
       - Net Returns, Annualized Return, Annualized Volatility, Sharpe Ratio,
@@ -150,6 +165,8 @@ def compute_performance_metrics(cum_series, daily_returns, trading_days, market_
         treynor = np.nan
         
     return {
+        "ticker" : ticker,
+        "best_parameters":best_parameters,
         "net_return": net_ret,
         "annualized_return": ann_ret,
         "annualized_volatility": ann_vol,

@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import random
 from tqdm import tqdm
 
-
 from settings import *
 from metrics import compute_performance_metrics
 
@@ -25,11 +24,28 @@ def create_output_directory(output_dir):
     try:
         path = Path(output_dir)
         path.mkdir(parents=True, exist_ok=True)
-        print(f"Created output directory at - {path.resolve()}")
+        # print(f"Created output directory at - {path.resolve()}")
     except Exception as e:
         print(f"Failed to create output directory at {output_dir}: {e}")
         raise e
     
+
+def create_ticker_output_directory(output_dir, ticker):
+    """
+    Create the output directory if it doesn't exist.
+
+    Parameters:
+    - output_dir (Path): Path to the output directory.
+    """
+    try:
+        path = Path(output_dir) / ticker
+        path.mkdir(parents=True, exist_ok=True)
+        # print(f"Created output directory at - {path.resolve()}")
+    except Exception as e:
+        print(f"Failed to create output directory at {output_dir}: {e}")
+        raise e
+    
+    return str(path.resolve())
 
 
 # --- --------- Setup Logging --------- ---
@@ -124,7 +140,7 @@ def prepare_data(data):
 
 
 def preprocess_data(ticker, raw_data_dir, years, months):
-    print("TICKER --> ", ticker)
+    # print("TICKER --> ", ticker)
     ticker_dfs = []
     for year in years:
         for month in months:
@@ -140,8 +156,8 @@ def preprocess_data(ticker, raw_data_dir, years, months):
     data.set_index('<datetime>', inplace=True)
     data['<date>'] = data.index.date
     data.sort_index(inplace=True)
-    print(data.shape)
-    # data.to_csv("temp.csv")
+    # print(data.shape)
+    # data.to_csv("data.csv")
     logging.info(f"Total records after concatenation for {ticker}: {len(data)}")
 
     return data
@@ -170,19 +186,13 @@ def calculate_opening_range(data, opening_range_minutes, market_open_time):
 
     # Filter data within the opening range using groupby and apply
     try:
-        opening_range = data.groupby('<date>').apply(
-            lambda x: x[x.index.time <= threshold_time]
-        ).reset_index(level=0, drop=True)
+        opening_range = data.groupby('<date>').apply(lambda x: x[x.index.time <= threshold_time]).reset_index(level=0, drop=True)
         logging.info(f"Total records within the opening range: {len(opening_range)}")
     except FutureWarning as fw:
         logging.warning(f"FutureWarning encountered: {fw}")
         # Handle the warning by modifying the groupby apply as needed
-        opening_range = data.groupby('<date>').filter(
-            lambda x: (x.index.time <= threshold_time).any()
-        ).copy()
-        opening_range = opening_range.groupby('<date>').apply(
-            lambda x: x[x.index.time <= threshold_time]
-        ).reset_index(drop=True)
+        opening_range = data.groupby('<date>').filter(lambda x: (x.index.time <= threshold_time).any()).copy()
+        opening_range = opening_range.groupby('<date>').apply(lambda x: x[x.index.time <= threshold_time]).reset_index(drop=True)
         logging.info(f"Total records within the opening range after handling warning: {len(opening_range)}")
 
     # Calculate opening range high and low
@@ -193,6 +203,8 @@ def calculate_opening_range(data, opening_range_minutes, market_open_time):
     data['opening_range_high'] = data['<date>'].map(opening_range_high)
     data['opening_range_low'] = data['<date>'].map(opening_range_low)
     logging.info("Merged opening range high and low back into the main DataFrame.")
+
+    # data.to_csv("data_f1.csv")
 
     return data
 
@@ -284,13 +296,15 @@ def apply_orb_strategy_with_param_range(data, profit_target_multipliers, stop_lo
       - dict: Keys are parameter combination strings, values are DataFrames with ORB strategy results.
     """
     data_dict = {}
-    for market_open_time in tqdm(market_open_times):
+    for market_open_time in market_open_times:
         for opening_range in opening_range_minutes_list:
             # Compute the opening range for this configuration
             data_or = calculate_opening_range(data.copy(), opening_range, market_open_time)
             for pt_mult in profit_target_multipliers:
                 for sl_mult in stop_loss_multipliers:
                     df_orb = apply_orb_strategy(data_or.copy(), profit_target_multiplier=pt_mult, stop_loss_multiplier=sl_mult)
+                    # df_orb.to_csv("df_orb.csv")
+                    market_open_time = market_open_time.replace(":", "-")
                     key = f"MOT_{market_open_time}__OR_{opening_range}__PTM_{pt_mult}__SLM_{sl_mult}"
                     data_dict[key] = df_orb
                     logging.info(f"Processed {key}")
@@ -389,44 +403,6 @@ def backtest_strategies(rangewise_data):
     return data_dict
 
 
-
-
-def plot_performance_comparison(metrics_dict):
-    """
-    Plot performance metrics across strategies in grouped subplots.
-    
-    The metrics are divided into four categories:
-      - Return Metrics: net_return, annualized_return
-      - Risk Metrics: annualized_volatility, max_drawdown, calmar_ratio
-      - Performance Ratios: sharpe_ratio, adjusted_sharpe_ratio, omega_ratio, kappa_ratio, sortino_ratio, treynor_ratio
-      - Trade-level Statistics: win_rate, avg_trade_return, win_loss_ratio
-    
-    Parameters:
-      - metrics_dict: dict with keys as strategy names and values as dicts of metrics.
-    """
-    metrics_df = pd.DataFrame(metrics_dict).T
-    
-    category1 = ["net_return", "annualized_return"]
-    category2 = ["annualized_volatility", "max_drawdown", "calmar_ratio"]
-    category3 = ["sharpe_ratio", "adjusted_sharpe_ratio", "omega_ratio", "kappa_ratio", "sortino_ratio", "treynor_ratio"]
-    category4 = ["win_rate", "avg_trade_return", "win_loss_ratio"]
-    
-    categories = [category1, category2, category3, category4]
-    titles = ["Return Metrics", "Risk Metrics", "Performance Ratios", "Trade-level Statistics"]
-    
-    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-    axes = axes.flatten()
-    
-    for i, cat in enumerate(categories):
-        df_cat = metrics_df[cat]
-        df_cat.plot(kind="bar", ax=axes[i])
-        axes[i].set_title(titles[i])
-        axes[i].set_ylabel("Value")
-        axes[i].tick_params(axis="x", rotation=45)
-    
-    plt.suptitle("Performance Comparison Across Strategies", fontsize=18)
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.show()
 
 
 # --- Parameter Optimization with Performance Evaluation ---
