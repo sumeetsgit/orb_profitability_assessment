@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+import gc
 
 
 def plot_returns_comparison(bt_df, ticker, best_parameters, save_plot=False, filename=None):
@@ -49,8 +50,47 @@ def plot_returns_comparison(bt_df, ticker, best_parameters, save_plot=False, fil
     # plt.show()
     if save_plot and filename:
         plt.savefig(filename)
-    # plt.show()
 
+    plt.close(fig)
+    gc.collect()
+
+
+
+
+def plot_cumulative_returns(bt_df, ticker, best_parameters, save_plot=False, filename=None):
+    """
+    Plot a single chart that overlays cumulative returns for each strategy.
+    
+    Parameters:
+      - bt_df: Backtested dataframe with cumulative return columns.
+      - ticker: Ticker string.
+      - best_parameters: Best parameter combination string.
+      - save_plot: bool, if True save the plot.
+      - filename: str, filename for saving.
+    """
+    strategy_cols = {
+        "ORB": "ORB_cum",
+        "Buy and Hold": "BH_cum",
+        "MA Crossover": "MA_cum",
+        "Mean Reversion": "MR_cum",
+        "Volatility Breakout": "VB_cum",
+        "Intraday Momentum": "MOM_cum",
+        "Golden Ratio Breakout": "GR_cum"
+    }
+    
+    fig, ax = plt.subplots(figsize=(14, 8))
+    for strat, col in strategy_cols.items():
+        ax.plot(bt_df.index, bt_df[col], label=strat)
+    ax.set_title(f"Cumulative Returns for Ticker: {ticker} | Best Params: {best_parameters}", fontsize=16)
+    ax.set_xlabel("Trading Days")
+    ax.set_ylabel("Cumulative Return")
+    ax.legend(fontsize=8, ncol=2)
+    plt.tight_layout()
+    if save_plot and filename:
+        plt.savefig(filename)
+    # plt.show()
+    plt.close(fig)
+    gc.collect()
 
 
 
@@ -96,4 +136,6 @@ def plot_performance_comparison(metrics_dict, ticker, best_parameters, save_plot
     
     if save_plot and filename:
         plt.savefig(filename)
-    # plt.show()
+    
+    plt.close(fig)
+    gc.collect()

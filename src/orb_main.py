@@ -12,8 +12,7 @@ import traceback
 
 from settings import *
 from auxiliary_functions import *
-from reports import plot_returns_comparison, plot_performance_comparison
-
+from reports import plot_returns_comparison, plot_performance_comparison, plot_cumulative_returns
 
 
 # --- --------- Main Execution Flow with Grid Search for finding best params --------- ---
@@ -59,6 +58,9 @@ def main_gs():
                 if best_parameters is not None:
                     best_candidate_df = rangewise_data[best_parameters]
                     best_bt_df = backtesting_results[best_parameters]
+                    best_bt_df["best_parameters"] = best_parameters
+                    best_bt_df["ticker"] = ticker
+                    best_bt_df.to_csv(ticker_output_dir + f"\\{ticker}_{best_parameters}_backtest_results.csv", index=False)
                     strategies = {
                         "ORB": ("ORB_cum", "ORB_returns"),
                         "Buy and Hold": ("BH_cum", "BH_returns"),
@@ -92,7 +94,7 @@ def main_gs():
                     metrics_plot_filepath = ticker_output_dir + f"\\{ticker}_{best_parameters}_metrics.png"
                     metrics_plot_filepath.replace("\\", "/")
 
-                    plot_returns_comparison(best_bt_df, ticker, best_parameters, save_plot=True, filename=returns_plot_filepath)
+                    plot_cumulative_returns(best_bt_df, ticker, best_parameters, save_plot=True, filename=returns_plot_filepath)
                     plot_performance_comparison(metrics_dict, ticker, best_parameters, save_plot=True, filename=metrics_plot_filepath)
                     complete_tickers.append(ticker)
                 else:
@@ -108,19 +110,19 @@ def main_gs():
 
         print("len(all_metrics_list) --> ", len(all_metrics_list)) 
         all_metrics_df = pd.DataFrame(all_metrics_list)
-        all_metrics_df.to_csv(OUTPUT_DIR + RUN + "/all_metrics.csv")
+        all_metrics_df.to_csv(OUTPUT_DIR + RUN + "/all_metrics__G.csv")
 
         print("len(complete_tickers) --> ", len(complete_tickers))
         complete_tickers_df = pd.DataFrame(complete_tickers)
-        complete_tickers_df.to_csv("complete_tickers.csv")
+        complete_tickers_df.to_csv(OUTPUT_DIR + RUN + "/complete_tickers__G.csv")
 
         print("len(incomplete_tickers) --> ", len(incomplete_tickers))
         incomplete_tickers_df = pd.DataFrame(incomplete_tickers)
-        incomplete_tickers_df.to_csv("incomplete_tickers.csv")
+        incomplete_tickers_df.to_csv(OUTPUT_DIR + RUN + "/incomplete_tickers__G.csv")
 
         print("len(unmet_criteria_tickers) --> ", len(unmet_criteria_tickers))
         unmet_criteria_tickers_df = pd.DataFrame(unmet_criteria_tickers)
-        unmet_criteria_tickers_df.to_csv("unmet_criteria_tickers.csv")
+        unmet_criteria_tickers_df.to_csv(OUTPUT_DIR + RUN + "/unmet_criteria_tickers__G.csv")
 
         
 
