@@ -80,6 +80,7 @@ def sensitivity_analysis():
 
     # Process each ticker's data to extract performance metrics in each volatility regime.
     for ticker, data in ticker_data_dict.items():
+        print(f"process {ticker} to extract performance metrics in each volatility regime.")
         # Map the computed rolling volatility to a regime label.
         data["vol_regime"] = data["rolling_vol"].apply(classify_vol)
 
