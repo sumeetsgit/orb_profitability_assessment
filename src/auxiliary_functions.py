@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 from tqdm import tqdm
+import gc
 
 from settings import *
 from metrics import compute_performance_metrics
@@ -204,7 +205,8 @@ def calculate_opening_range(data, opening_range_minutes, market_open_time):
     data['opening_range_low'] = data['<date>'].map(opening_range_low)
     logging.info("Merged opening range high and low back into the main DataFrame.")
 
-    # data.to_csv("data_f1.csv")
+    del opening_range, opening_range_high, opening_range_low
+    gc.collect()
 
     return data
 
@@ -264,6 +266,8 @@ def apply_orb_strategy(df, profit_target_multiplier, stop_loss_multiplier):
     df.loc[long_loss_condition, 'trade_outcome'] = 'loss'
     df.loc[short_win_condition, 'trade_outcome'] = 'win'
     df.loc[short_loss_condition, 'trade_outcome'] = 'loss'
+
+    gc.collect()
 
     # print("ORB strategy applied with parameters - Profit Target Multiplier: {}, Stop Loss Multiplier: {}".format(profit_target_multiplier, stop_loss_multiplier))
 
@@ -328,10 +332,7 @@ def backtest_strategies(rangewise_data):
     Assumes df contains the required columns (e.g. "<close>", "<open>", "<high>", "<low>").
     
     Returns:
-      - pd.DataFrame: The original dataframe with added columns:
-            "daily_returns" and for each strategy:
-              - Strategy daily returns (e.g. "ORB_returns")
-              - Cumulative portfolio value (e.g. "ORB_cum") starting at 1.
+      - dict: Keys are parameter combination strings, values are DataFrames with ORB strategy results.
     """
     data_dict = {}
     for key, df in rangewise_data.items():
@@ -339,7 +340,7 @@ def backtest_strategies(rangewise_data):
         df["daily_returns"] = df["<close>"].pct_change().fillna(0)
         
         # ORB Strategy
-        df["ORB_position"] = df["signal"].shift().fillna(0)
+        df["ORB_position"] = df["signal"].shift().fillna(0).astype(np.int8)
         df["ORB_returns"] = df["ORB_position"] * df["daily_returns"]
         df["ORB_cum"] = (1 + df["ORB_returns"]).cumprod()
         
@@ -351,8 +352,8 @@ def backtest_strategies(rangewise_data):
         # Moving Average Crossover Strategy
         df["short_MA"] = df["<close>"].rolling(window=20, min_periods=1).mean()
         df["long_MA"] = df["<close>"].rolling(window=50, min_periods=1).mean()
-        df["MA_signal"] = np.where(df["short_MA"] > df["long_MA"], 1, -1)
-        df["MA_position"] = df["MA_signal"].shift().fillna(0)
+        df["MA_signal"] = np.where(df["short_MA"] > df["long_MA"], 1, -1).astype(np.int8)
+        df["MA_position"] = df["MA_signal"].shift().fillna(0).astype(np.int8)
         df["MA_returns"] = df["MA_position"] * df["daily_returns"]
         df["MA_cum"] = (1 + df["MA_returns"]).cumprod()
         
@@ -365,7 +366,7 @@ def backtest_strategies(rangewise_data):
         df["MR_signal"] = 0
         df.loc[df["z_score"] > threshold, "MR_signal"] = -1
         df.loc[df["z_score"] < -threshold, "MR_signal"] = 1
-        df["MR_position"] = df["MR_signal"].shift().fillna(0)
+        df["MR_position"] = df["MR_signal"].shift().fillna(0).astype(np.int8)
         df["MR_returns"] = df["MR_position"] * df["daily_returns"]
         df["MR_cum"] = (1 + df["MR_returns"]).cumprod()
         
@@ -374,14 +375,14 @@ def backtest_strategies(rangewise_data):
         df["VB_signal"] = 0
         df.loc[df["<close>"] > df["<open>"] + vol_breakout_threshold*(df["<high>"] - df["<low>"]), "VB_signal"] = 1
         df.loc[df["<close>"] < df["<open>"] - vol_breakout_threshold*(df["<high>"] - df["<low>"]), "VB_signal"] = -1
-        df["VB_position"] = df["VB_signal"].shift().fillna(0)
+        df["VB_position"] = df["VB_signal"].shift().fillna(0).astype(np.int8)
         df["VB_returns"] = df["VB_position"] * df["daily_returns"]
         df["VB_cum"] = (1 + df["VB_returns"]).cumprod()
         
         # Intraday Momentum Strategy
         df["momentum"] = df["<close>"] - df["<open>"]
-        df["MOM_signal"] = np.where(df["momentum"] > 0, 1, -1)
-        df["MOM_position"] = df["MOM_signal"].shift().fillna(0)
+        df["MOM_signal"] = np.where(df["momentum"] > 0, 1, -1).astype(np.int8)
+        df["MOM_position"] = df["MOM_signal"].shift().fillna(0).astype(np.int8)
         df["MOM_returns"] = df["MOM_position"] * df["daily_returns"]
         df["MOM_cum"] = (1 + df["MOM_returns"]).cumprod()
         
@@ -394,11 +395,13 @@ def backtest_strategies(rangewise_data):
         df["GR_signal"] = 0
         df.loc[df["<close>"] > df["GR_fibo_long"], "GR_signal"] = 1
         df.loc[df["<close>"] < df["GR_fibo_short"], "GR_signal"] = -1
-        df["GR_position"] = df["GR_signal"].shift().fillna(0)
+        df["GR_position"] = df["GR_signal"].shift().fillna(0).astype(np.int8)
         df["GR_returns"] = df["GR_position"] * df["daily_returns"]
         df["GR_cum"] = (1 + df["GR_returns"]).cumprod()
 
         data_dict[key] = df
+
+    gc.collect()
     
     return data_dict
 

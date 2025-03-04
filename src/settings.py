@@ -17,7 +17,7 @@ STOP_LOSS_MULTIPLIERS = [0.5, 1, 2]
 OPENING_RANGE_MINUTES_LIST = [10, 20]
 MARKET_OPEN_TIMES = ['09:15:00','09:30:00']
 
-CRITERIA_SHARPE_THRESHOLD = 1.0 #0.5
+CRITERIA_SHARPE_THRESHOLD = 0.4 #0.5
 CRITERIA_MAX_DRAWDOWN = 0.1
 
 RISK_FREE_RATE = 0.06 / 252
@@ -35,7 +35,7 @@ LOGS_DIR = DATA_DIR + "logs/"
 RAW_DATA_DIR = DATA_DIR + "raw-data/"
 
 NSE_EQUITY_LIST_PATH = RAW_DATA_DIR + "others/nse-equity-list/NSE-Equity-List.csv"
-NSE_AVAILABLE_EQUITY_LIST_PATH = DATA_DIR + "processed-data/NSE-Equity-List(Available).csv"
+NSE_AVAILABLE_EQUITY_LIST_PATH = DATA_DIR + "processed-data/NSE-Equity-List(Available)_G.csv"
 NSE_EQUITY_RAW_DATA_1MIN_DIR = RAW_DATA_DIR + "raw-data-1minute/nse/equity"
 
 # URL of the NSE India equity stock list
