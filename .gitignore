@@ -1,8 +1,6 @@
 # user directories
 
 data/
-data/output/
-data/raw-data-1minute/
 
 src/app-data/
 src/app-data.zip
