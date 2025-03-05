@@ -27,3 +27,10 @@
 ## Ensure that the "data" folder follows appropriate folder structure & is included as a part of .gitignore file
     download data at https://drive.google.com/drive/folders/1pjOkfxDE1zY9lpzkSW6ZLIcG57rkvYml`
     
+## Run the main function 
+    cd src
+    python orb_main.py
+
+## Run the sensitivity analysis
+    cs src
+    python sensitivity_analysis.py
