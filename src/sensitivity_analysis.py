@@ -151,7 +151,7 @@ def sensitivity_analysis():
 
     # Save the volatility sensitivity analysis metrics to a CSV file.
     vol_df = pd.DataFrame(volatility_results)
-    vol_csv_path = Path("..") / "data" / "output" / "volatility_sensitivity.csv"
+    vol_csv_path = Path(".") / "data" / "output" / "volatility_sensitivity.csv"
     vol_df.to_csv(vol_csv_path, index=False)
     logging.info(f"Volatility sensitivity analysis results saved to {vol_csv_path}")
     print(f"Volatility sensitivity analysis results saved to {vol_csv_path}")
@@ -209,7 +209,7 @@ def sensitivity_analysis():
 
     # Save the liquidity sensitivity analysis metrics to a CSV file.
     liq_df = pd.DataFrame(liquidity_results)
-    liq_csv_path = Path("..") / "data" / "output" / "liquidity_sensitivity.csv"
+    liq_csv_path = Path(".") / "data" / "output" / "liquidity_sensitivity.csv"
     liq_df.to_csv(liq_csv_path, index=False)
     logging.info(f"Liquidity sensitivity analysis results saved to {liq_csv_path}")
     print(f"Liquidity sensitivity analysis results saved to {liq_csv_path}")

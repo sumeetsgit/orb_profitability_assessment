@@ -35,7 +35,7 @@ LOGS_DIR = DATA_DIR + "logs/"
 RAW_DATA_DIR = DATA_DIR + "raw-data/"
 
 NSE_EQUITY_LIST_PATH = RAW_DATA_DIR + "others/nse-equity-list/NSE-Equity-List.csv"
-NSE_AVAILABLE_EQUITY_LIST_PATH = DATA_DIR + "processed-data/NSE-Equity-List(Available)_G.csv"
+NSE_AVAILABLE_EQUITY_LIST_PATH = DATA_DIR + "processed-data/NSE-Equity-List(Available).csv"
 NSE_EQUITY_RAW_DATA_1MIN_DIR = RAW_DATA_DIR + "raw-data-1minute/nse/equity"
 
 # URL of the NSE India equity stock list
