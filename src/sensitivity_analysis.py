@@ -11,12 +11,7 @@ from joblib import Parallel, delayed
 # pr = cProfile.Profile()
 
 from settings import *
-from auxiliary_functions import (
-    calculate_opening_range,
-    apply_orb_strategy,
-    preprocess_data,
-    check_available_tickers
-)
+from auxiliary_functions import (calculate_opening_range, apply_orb_strategy, preprocess_data, get_available_tickers)
 from metrics import compute_performance_metrics
 
 
@@ -112,6 +107,7 @@ def sensitivity_analysis():
 
     vol_high_threshold = np.percentile(all_vols, 67)
     vol_low_threshold = np.percentile(all_vols, 33)
+
     print(f"Proxy Volatility thresholds: High >= {vol_high_threshold:.4f}, Low <= {vol_low_threshold:.4f}")
     logging.info(f"Volatility thresholds: High >= {vol_high_threshold:.4f}, Low <= {vol_low_threshold:.4f}")
 

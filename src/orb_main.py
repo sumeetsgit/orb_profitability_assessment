@@ -18,8 +18,14 @@ from reports import plot_returns_comparison, plot_performance_comparison, plot_c
 # --- --------- Main Execution Flow with Grid Search for finding best params --------- ---
 def main_gs():
     try:
+        complete_tickers = []
+        incomplete_tickers = []
+        unmet_criteria_tickers = []
+        all_metrics_list = []
+
         # Step 1: Setup Logging
         setup_logging(LOGS_DIR + RUN)
+        logging.info("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
         logging.info("ORB Strategy Backtest Script Started.")
 
         # Step 2: Create Output Directory
@@ -27,21 +33,16 @@ def main_gs():
         logging.info("Created output directory at - {}.".format(OUTPUT_DIR + RUN))
 
         # Step 3: Check available valid data
-        available_nse_tickers = check_available_tickers(NSE_AVAILABLE_EQUITY_LIST_PATH)
+        available_nse_tickers = get_available_tickers(NSE_AVAILABLE_EQUITY_LIST_PATH)
         logging.info("Data is available for {} tickers.".format(len(available_nse_tickers)))
 
-        complete_tickers = []
-        incomplete_tickers = []
-        unmet_criteria_tickers = []
-        all_metrics_list = []
 
         # Step 4: Load and Process Data
         for ticker in tqdm(available_nse_tickers):
             try:
-                logging.info("=====================================")
+                logging.info("-----------------------")
                 logging.info("Processing data for ticker - {}.".format(ticker))
                 
-                ticker = ticker.split(".")[0]
                 ticker_output_dir = create_ticker_output_directory(OUTPUT_DIR + RUN, ticker)
                 # print("ticker_output_dir --> ", ticker_output_dir)
 
@@ -110,71 +111,20 @@ def main_gs():
 
         print("len(all_metrics_list) --> ", len(all_metrics_list)) 
         all_metrics_df = pd.DataFrame(all_metrics_list)
-        all_metrics_df.to_csv(OUTPUT_DIR + RUN + "/all_metrics__G.csv")
+        all_metrics_df.to_csv(OUTPUT_DIR + RUN + "/all_metrics__Z.csv")
 
         print("len(complete_tickers) --> ", len(complete_tickers))
         complete_tickers_df = pd.DataFrame(complete_tickers)
-        complete_tickers_df.to_csv(OUTPUT_DIR + RUN + "/complete_tickers__G.csv")
+        complete_tickers_df.to_csv(OUTPUT_DIR + RUN + "/complete_tickers__Z.csv")
 
         print("len(incomplete_tickers) --> ", len(incomplete_tickers))
         incomplete_tickers_df = pd.DataFrame(incomplete_tickers)
-        incomplete_tickers_df.to_csv(OUTPUT_DIR + RUN + "/incomplete_tickers__G.csv")
+        incomplete_tickers_df.to_csv(OUTPUT_DIR + RUN + "/incomplete_tickers__Z.csv")
 
         print("len(unmet_criteria_tickers) --> ", len(unmet_criteria_tickers))
         unmet_criteria_tickers_df = pd.DataFrame(unmet_criteria_tickers)
-        unmet_criteria_tickers_df.to_csv(OUTPUT_DIR + RUN + "/unmet_criteria_tickers__G.csv")
+        unmet_criteria_tickers_df.to_csv(OUTPUT_DIR + RUN + "/unmet_criteria_tickers_Z.csv")
 
-        
-
-
-
-            
-            
-            # import sys
-            # sys.exit()
-
-
-
-            # Step 7: Backtest Strategies
-            # cumulative_returns_orb, cumulative_returns_bh = backtest_strategies(data)
-            # logging.info("Completed backtesting of both ORB and Buy and Hold strategies.")
-
-            # sample_key = list(rangewise_data.keys())[0]
-            # sample_data = rangewise_data[sample_key]
-            # results = backtest_strategies(sample_data)
-
-
-
-            # # Step 8: Calculate Performance Metrics
-            # daily_returns_orb = data['strategy_returns_orb'].dropna()
-            # daily_returns_bh = data['strategy_returns_bh'].dropna()
-
-            # metrics_orb = calculate_performance_metrics(cumulative_returns_orb.dropna(), daily_returns_orb)
-            # metrics_bh = calculate_performance_metrics(cumulative_returns_bh.dropna(), daily_returns_bh)
-
-            # # Compile performance metrics into DataFrame
-            # performance_df = pd.DataFrame({
-            #     'ORB Strategy': metrics_orb,
-            #     'Buy and Hold': metrics_bh
-            # })
-
-            # logging.info("Calculated performance metrics for both strategies.")
-            # print("\nPerformance Metrics Comparison:")
-            # print(performance_df)
-
-            # # Step 8: Plotting
-            # plot_cumulative_returns(cumulative_returns_orb, cumulative_returns_bh, OUTPUT_DIR, ticker)
-            # plot_drawdowns(cumulative_returns_orb, cumulative_returns_bh, OUTPUT_DIR, ticker)
-            # plot_performance_metrics(performance_df, OUTPUT_DIR, ticker)
-
-            # # Step 9: Save Performance Metrics to CSV
-            # save_performance_metrics(performance_df, OUTPUT_DIR, ticker)
-
-            # # Step 10: Save the Enhanced Dataset
-            # save_enhanced_dataset(data, OUTPUT_DIR, ticker)
-
-            # logging.info("ORB Strategy Backtest Script completed successfully.")
-            # complete_tickers.append(ticker)
 
     except Exception as e:
         logging.error(f"An error occurred during execution: {e}")

@@ -11,9 +11,6 @@ import gc
 from settings import *
 from metrics import compute_performance_metrics
 
-
-
-
 # --- --------- Create Output Directory --------- ---
 def create_output_directory(output_dir):
     """
@@ -68,76 +65,51 @@ def setup_logging(logs_dir):
 
 
 
-def check_available_tickers(required_path):
+def check_available_tickers(NSE_EQUITY_LIST_PATH, raw_data_1min_path, years, months):
+    BASE_DIR = "C:/SUMEET/PERSONAL/WQU/WQU - Capstone Project/CODE/orb_profitability_assessment/"
+    NSE_EQUITY_LIST_PATH = BASE_DIR + "data/NSE-Equity-List.csv"
+    raw_data_1min_path = BASE_DIR + "data/raw-data-1minute/nse/equity/"
+    years = ["2021", "2022"]
+    months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+
+    tickers = pd.read_csv(NSE_EQUITY_LIST_PATH, header=None)[0].tolist()
+    print("All Available NSE Tickers --> {}".format(len(tickers)))
+
+    all_raw_data_1min = {}
+
+    for year in years:
+        for month in months:
+            duration = month + "_" + year
+            actual_data_dir = raw_data_1min_path + year + "/" + duration
+            available_tickers_nse_1min = os.listdir(actual_data_dir)
+            all_raw_data_1min[duration] = available_tickers_nse_1min
+            print(duration, len(available_tickers_nse_1min))
+            
+    # Combine all lists into a single list of lists
+    all_lists = list(all_raw_data_1min.values())
+
+    # Find common elements across all lists
+    common_tickers = set(all_lists[0])  # Start with the first list as the base
+    for lst in all_lists[1:]:
+        common_tickers &= set(lst)  # Intersect with each subsequent list
+
+    # Convert back to a list if needed
+    common_tickers = list(common_tickers)
+
+    print("="*66)
+    print("Common tickers across all durations --> ", len(common_tickers))
+
+    common_tickers_df = pd.DataFrame(common_tickers, columns = ["tickers"])
+    common_tickers_df.to_csv(BASE_DIR + "data/NSE-Equity-List(Available).csv")
+
+
+
+def get_available_tickers(required_path):
     available_nse_tickers_df = pd.read_csv(required_path)
-    available_nse_tickers = list(available_nse_tickers_df["tickers"])
+    available_nse_tickers = [x.split(".")[0]for x in list(available_nse_tickers_df["tickers"])]
     print("Data is available for {} tickers.".format(len(available_nse_tickers)))
     return available_nse_tickers
 
-
-# --- --------- Load and Concatenate CSV Files --------- ---
-def load_and_concatenate_csv(data_dir, file_pattern='NIFTY_*.csv'):
-    """
-    Load multiple CSV files matching the given pattern and concatenate them into a single DataFrame.
-
-    Parameters:
-    - data_dir (Path): Directory containing the CSV files.
-    - file_pattern (str): Glob pattern to match CSV files.
-
-    Returns:
-    - pd.DataFrame: Concatenated DataFrame containing all data.
-    """
-    csv_files = sorted(data_dir.glob(file_pattern))
-
-    if not csv_files:
-        logging.error(f"No CSV files found in {data_dir} matching the pattern '{file_pattern}'.")
-        raise FileNotFoundError(f"No CSV files found in {data_dir} matching the pattern '{file_pattern}'.")
-
-    df_list = []
-    for file in csv_files:
-        try:
-            logging.info(f"Loading {file.name}...")
-            df = pd.read_csv(file, parse_dates=['datetime'])
-
-            # Ensure required columns are present
-            required_columns = {'datetime', 'open', 'high', 'low', 'close', 'volume'}
-            if not required_columns.issubset(df.columns):
-                missing = required_columns - set(df.columns)
-                logging.error(f"CSV file {file.name} is missing columns: {missing}")
-                raise ValueError(f"CSV file {file.name} is missing columns: {missing}")
-
-            df.set_index('datetime', inplace=True)
-            df_list.append(df)
-        except Exception as e:
-            logging.error(f"Error loading {file.name}: {e}")
-            raise e
-
-    # Concatenate all DataFrames
-    data = pd.concat(df_list)
-    data.sort_index(inplace=True)
-    logging.info(f"Total records after concatenation: {len(data)}")
-
-    return data
-
-
-
-
-# --- --------- Prepare Data --------- ---
-def prepare_data(data):
-    """
-    Prepare the DataFrame by adding necessary columns for grouping and strategy calculations.
-
-    Parameters:
-    - data (pd.DataFrame): The concatenated DataFrame.
-
-    Returns:
-    - pd.DataFrame: Prepared DataFrame.
-    """
-    # Add 'date' column for grouping
-    data['date'] = data.index.date
-    logging.info("Added 'date' column for grouping.")
-
-    return data
 
 
 def preprocess_data(ticker, raw_data_dir, years, months):
