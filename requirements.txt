@@ -62,3 +62,4 @@ wcwidth==0.2.13
 webencodings==0.5.1
 yarl==1.18.3
 yfinance==0.2.52
+joblib==1.4.2
