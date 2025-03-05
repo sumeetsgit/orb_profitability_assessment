@@ -129,13 +129,9 @@ def preprocess_data(ticker, raw_data_dir, years, months):
     data.set_index('<datetime>', inplace=True)
     data['<date>'] = data.index.date
     data.sort_index(inplace=True)
-    # print(data.shape)
-    # data.to_csv("data.csv")
     logging.info(f"Total records after concatenation for {ticker}: {len(data)}")
 
     return data
-
-    
 
 
 # --- --------- Calculate Opening Range --------- ---
@@ -240,8 +236,6 @@ def apply_orb_strategy(df, profit_target_multiplier, stop_loss_multiplier):
     df.loc[short_loss_condition, 'trade_outcome'] = 'loss'
 
     gc.collect()
-
-    # print("ORB strategy applied with parameters - Profit Target Multiplier: {}, Stop Loss Multiplier: {}".format(profit_target_multiplier, stop_loss_multiplier))
 
     return df
 
@@ -464,7 +458,7 @@ def evaluate_candidate(data, candidate):
 
 
 
-
+'''
 def evolve_parameters(data, pop_size=20, generations=20):
     """
     Evolve candidate parameter sets using a simple genetic algorithm.
@@ -545,8 +539,6 @@ def evolve_parameters(data, pop_size=20, generations=20):
 
 
 
-
-'''
 
 # --- --------- Calculate Performance Metrics --------- ---
 def calculate_performance_metrics(cumulative_returns, daily_returns):
@@ -767,6 +759,5 @@ def save_enhanced_dataset(df, output_dir, ticker):
 
     df.to_csv(output_file, index=True)
     logging.info(f"Enhanced dataset with ORB and B&H strategy metrics saved to {output_file}")
-
 
 '''

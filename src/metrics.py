@@ -114,14 +114,6 @@ def calculate_calmar_ratio(annualized_return, max_drawdown):
     return annualized_return / abs(max_drawdown) if max_drawdown != 0 else np.nan
 
 
-# def calculate_treynor_ratio(daily_returns, market_returns, risk_free_rate=RISK_FREE_RATE):
-#     """
-#     Calculate the Treynor Ratio.
-#     """
-#     beta = daily_returns.cov(market_returns) / market_returns.var() if market_returns.var() != 0 else np.nan
-#     return (daily_returns.mean() - risk_free_rate) / beta if beta not in [0, np.nan] else np.nan
-
-
 def calculate_treynor_ratio(daily_returns, market_returns, risk_free_rate=0.06/252):
     """
     Calculate the Treynor Ratio.

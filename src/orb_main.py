@@ -83,13 +83,7 @@ def main_gs():
                         metrics["best_parameters"] = best_parameters
                         all_metrics_list.append(metrics)
                         metrics_dict[strat] = metrics
-                        # print(f"Strategy: {strat}")
-                        # for m_key, m_val in metrics.items():
-                        #     if m_key not in ["ticker", "strategy", "best_parameters"]:
-                        #         print(f"  {m_key}: {m_val:.4f}")
-                        # print("-" * 40)
 
-                    
                     returns_plot_filepath = ticker_output_dir + f"\\{ticker}_{best_parameters}_returns.png"
                     returns_plot_filepath.replace("\\", "/")
                     metrics_plot_filepath = ticker_output_dir + f"\\{ticker}_{best_parameters}_metrics.png"
