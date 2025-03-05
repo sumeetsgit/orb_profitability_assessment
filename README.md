@@ -1,24 +1,38 @@
-# ORB Profitability Assessment
 
-## 1. Install required libraries from "requirements.txt"
+# orb_profitability_assessment
 
+## Create below directories strctures to store raw data.
 
-## 2. Ensure that the repository follows appropriate directory structure
-### Run the following commands to ensure that you have proper folder structure - 
-#### (1) $ mkdir data
-#### (2) $ mkdir data/raw-data-1minute/nse/equity
-#### (3) $ cd src/app-data
+```
+|-data
+    |-raw-data
+        |-raw-data-1minute
+            |-nse
+                |-equity
+                    |-2021
+                        |-January_2021
+                            |-.CNX100.csv
+                        |-.....
+                        |-December_2021
+                    |-2022
+                        |-January_2022
+                        |-.....
+                        |-December_2021
 
-### Place raw data provided in the "/data/raw-data-1minute/nse/equity/" directory as follows - 
-#### -equity
-|- 2021
+```
 
-|---January_2021
+## Install required libraries from "requirements.txt"
+    pip install --upgrade pip
+    pip install -r requirements. txt    
 
-|-----ABB.csv
+## Ensure that the "data" folder follows appropriate folder structure & is included as a part of .gitignore file
+    download data at https://drive.google.com/drive/folders/1pjOkfxDE1zY9lpzkSW6ZLIcG57rkvYml`
+    
+## Run the main function 
+    cd src
+    python orb_main.py
 
-|- 2022
+## Run the sensitivity analysis
+    cs src
+    python sensitivity_analysis.py
 
-
-## 3. Run the main file
-### python orb_main.py
