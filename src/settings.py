@@ -27,7 +27,7 @@ RISK_FREE_RATE = 0.06 / 252
 YEARS = ["2021", "2022"]
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
-BASE_DIR = "/Users/zacharylau/PycharmProjects/orb_profitability_assessment/"
+BASE_DIR = "C:/SUMEET/PERSONAL/WQU/WQU - Capstone Project/CODE/orb_profitability_assessment/"
 DATA_DIR = BASE_DIR + "data/"
 
 OUTPUT_DIR = DATA_DIR + "output/"
@@ -35,7 +35,7 @@ LOGS_DIR = DATA_DIR + "logs/"
 RAW_DATA_DIR = DATA_DIR + "raw-data/"
 
 NSE_EQUITY_LIST_PATH = RAW_DATA_DIR + "others/nse-equity-list/NSE-Equity-List.csv"
-NSE_AVAILABLE_EQUITY_LIST_PATH = DATA_DIR + "processed-data/NSE-Equity-List(Available)_G.csv"
+NSE_AVAILABLE_EQUITY_LIST_PATH = DATA_DIR + "processed-data/NSE-Equity-List(Available)_Z.csv"
 NSE_EQUITY_RAW_DATA_1MIN_DIR = RAW_DATA_DIR + "raw-data-1minute/nse/equity"
 
 # URL of the NSE India equity stock list

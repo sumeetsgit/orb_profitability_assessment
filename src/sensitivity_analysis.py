@@ -6,12 +6,7 @@ from tqdm import tqdm
 import logging
 
 from settings import *
-from auxiliary_functions import (
-    calculate_opening_range,
-    apply_orb_strategy,
-    preprocess_data,
-    check_available_tickers
-)
+from auxiliary_functions import (calculate_opening_range, apply_orb_strategy, preprocess_data, get_available_tickers)
 from metrics import compute_performance_metrics
 
 
@@ -40,22 +35,21 @@ def sensitivity_analysis():
     all_vols = []
 
     # Get list of available tickers
-    available_tickers = check_available_tickers(NSE_AVAILABLE_EQUITY_LIST_PATH)
+    available_tickers = get_available_tickers(NSE_AVAILABLE_EQUITY_LIST_PATH)
 
     # Load and preprocess data for each ticker; compute rolling volatility proxy
     for ticker in available_tickers:
-        ticker_base = ticker.split(".")[0]
         try:
-            data = preprocess_data(ticker_base, NSE_EQUITY_RAW_DATA_1MIN_DIR, YEARS, MONTHS)
+            data = preprocess_data(ticker, NSE_EQUITY_RAW_DATA_1MIN_DIR, YEARS, MONTHS)
             # Compute daily returns from the "<close>" column
             data["daily_return"] = data["<close>"].pct_change()
             # Compute 20-day rolling volatility as a proxy for daily volatility
             data["rolling_vol"] = data["daily_return"].rolling(window=20, min_periods=1).std()
-            ticker_data_dict[ticker_base] = data
+            ticker_data_dict[ticker] = data
             # Append all computed rolling volatilities for threshold determination
             all_vols.extend(data["rolling_vol"].dropna().tolist())
         except Exception as e:
-            logging.error(f"Failed processing data for ticker {ticker_base}: {e}")
+            logging.error(f"Failed processing data for ticker {ticker}: {e}")
             continue
 
     if not all_vols:
@@ -65,8 +59,7 @@ def sensitivity_analysis():
     # Define volatility thresholds based on the overall quantiles from the computed values.
     vol_high_threshold = np.percentile(all_vols, 67)
     vol_low_threshold = np.percentile(all_vols, 33)
-    print(
-        f"Proxy volatility thresholds (rolling vol): High >= {vol_high_threshold:.4f}, Low <= {vol_low_threshold:.4f}")
+    print(f"Proxy volatility thresholds (rolling vol): High >= {vol_high_threshold:.4f}, Low <= {vol_low_threshold:.4f}")
 
     def classify_vol(vol):
         if pd.isna(vol):
